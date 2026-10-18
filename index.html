@@ -292,7 +292,6 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
       <button class="btn chip on" data-layer="furn" data-en="Furniture" data-ru="Мебель">家具</button>
       <button class="btn chip" data-layer="grid" data-en="Grid" data-ru="Сетка">网格</button>
       <button class="btn chip" data-layer="bearing" data-en="Bearing walls" data-ru="Несущие">承重墙</button>
-      <button class="btn chip on" data-layer="wallSnap" title="Привязка к стенам" data-en-title="Snap furniture to walls while dragging" data-ru-title="Привязка мебели к стенам" data-en="Wall snap" data-ru="К стенам">К стенам</button>
       <button class="btn chip on" data-layer="bg" title="Фоновое изображение" data-en-title="Background image" data-ru-title="Фоновое изображение" data-en="Background" data-ru="Фон">Фон</button>
     </div>
     <details class="menu only2d" id="opMenu"><summary class="btn" data-en="Opacity ▾" data-ru="Прозрачность ▾">Прозрачность ▾</summary>
@@ -618,7 +617,7 @@ function rebindData(){ WALLS = state.walls; WINS = state.wins; DOORS = state.doo
 const ui = {tool:'select', sel:null, mA:null, mCur:null, drawFrom:null, drawPrev:null, openPrev:null, wallK:'n', calib:null, areaRect:null, hoverDoor:null,
   len:{door:800, win:1200, wall:null},
   op:{walls:1, open:1, furn:1, rooms:1, dims:1, labels:1, grid:1, bg:1},
-  layers:{dims:true, labels:true, furn:true, grid:false, bearing:false, wallSnap:true, bg:true}};
+  layers:{dims:true, labels:true, furn:true, grid:false, bearing:false, bg:true}};
 let view = {x0:0, y0:0, s:.06};
 const undoStack = [], redoStack = [];
 
@@ -1877,7 +1876,6 @@ function pushOut(f){
 }
 function addItem(it, x, y){
   const [type,name,w,d,color] = it, f = F(type,name,Math.round(x/10)*10,Math.round(y/10)*10,w,d,0,color);
-  const [sx, sy] = snapMove(f, f.cx, f.cy); f.cx = sx; f.cy = sy;
   ui.sel = {kind:'furn', id:f.id};
   mutate(() => type==='rug' ? state.furniture.unshift(f) : state.furniture.push(f));
   toast(tr(`已添加「${name}」${w}×${d}`, `Added "${nm(name)}" ${w}×${d}`, `Добавлено «${name}» ${w}×${d}`));
@@ -2000,47 +1998,7 @@ function toMM(e){
 /* ======================= 吸附 ======================= */
 const grid = () => 10;
 function snapMove(f, cx, cy){
-  let nx = Math.round(cx/grid())*grid(), ny = Math.round(cy/grid())*grid();
-  if (ui.layers.wallSnap){
-    const {hw, hh} = aabb(f), tol = 150;            // радиус привязки к стене, мм
-    let best = tol, bx = nx, by = ny;
-    for (const w of snapSegs()){
-      const th = wallTh(w)/2;
-      const dx = w.x1-w.x0, dy = w.y1-w.y0, L = Math.hypot(dx, dy) || 1, ux = dx/L, uy = dy/L, px = -uy, py = ux;
-      for (const s of [-1, 1]){
-        const fx = w.x0 + s*th*px, fy = w.y0 + s*th*py;
-        let t = (cx-fx)*ux + (cy-fy)*uy; t = Math.max(0, Math.min(L, t));
-        const qx = fx + t*ux, qy = fy + t*uy;
-        const ddx = cx-qx, ddy = cy-qy, d = Math.hypot(ddx, ddy) || 1;
-        const nxu = ddx/d, nyu = ddy/d, supp = hw*Math.abs(nxu) + hh*Math.abs(nyu);
-        const gap = Math.abs(d - supp);
-        if (gap < best){ best = gap; bx = qx + nxu*supp; by = qy + nyu*supp; }
-      }
-    }
-    nx = bx; ny = by;
-  }
-  // стены всегда «непрозрачны»: мебель не может зайти внутрь, выталкивается вплотную к грани
-  return collideWalls(f, nx, ny);
-}
-function collideWalls(f, x, y){
-  // выталкиваем мебель из стен по самому мелкому пересечению, вплотную к грани
-  const tmp = {cx:x, cy:y, w:f.w, d:f.d, rot:f.rot};
-  for (let n = 0; n < 8; n++){
-    let moved = false;
-    for (const w of snapSegs()){
-      const th = wallTh(w)/2, {hw, hh} = aabb(tmp);
-      const dx = w.x1-w.x0, dy = w.y1-w.y0, L2 = dx*dx + dy*dy;
-      let t = L2 ? ((tmp.cx-w.x0)*dx + (tmp.cy-w.y0)*dy)/L2 : 0; t = Math.max(0, Math.min(1, t));
-      const px = w.x0 + t*dx, py = w.y0 + t*dy;
-      const ddx = tmp.cx-px, ddy = tmp.cy-py, d = Math.hypot(ddx, ddy) || 1;
-      const nx = ddx/d, ny = ddy/d;
-      const need = th + hw*Math.abs(nx) + hh*Math.abs(ny);
-      if (d >= need) continue;
-      tmp.cx = px + nx*need; tmp.cy = py + ny*need; moved = true;
-    }
-    if (!moved) break;
-  }
-  return [tmp.cx, tmp.cy];
+  return [Math.round(cx/grid())*grid(), Math.round(cy/grid())*grid()];
 }
 function snapPoint(p, shift){
   let x = Math.round(p.x/10)*10, y = Math.round(p.y/10)*10;
@@ -2650,7 +2608,7 @@ document.querySelectorAll('#wallKSeg .btn').forEach(b => b.onclick = () => {
 document.querySelectorAll('#layers .btn').forEach(b => b.onclick = () => {
   const k = b.dataset.layer; ui.layers[k] = !ui.layers[k]; b.classList.toggle('on', ui.layers[k]);
   if (k === 'dims') $('#gDims').setAttribute('display', ui.layers.dims ? 'inline' : 'none');
-  else if (k !== 'wallSnap') renderAll();
+  else renderAll();
 });
 /* ---------- Прозрачность слоёв ---------- */
 const OP_KEY = 'hata-op';
