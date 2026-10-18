@@ -243,7 +243,7 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
       <button class="btn chip" id="tgLib" data-en="◧ Library" data-ru="◧ Мебель">◧ 家具库</button>
       <button class="btn chip" id="tgPanel" data-en="Properties ◨" data-ru="Свойства ◨">属性 ◨</button>
     </div>
-    <div class="brand"><b data-en="3BR 2LR 2BA · Interior Design" data-ru="2-комн. Планировка">三室两厅两卫 · 装修设计</b><span id="subtitle">План 1:60 · ед. изм. мм</span></div>
+    <div class="brand"><b data-en="Floor Plan Designer" data-ru="Планировка и дизайн">Планировка и дизайн</b><span id="subtitle">План 1:60 · ед. изм. мм</span></div>
     <div class="grp seg" id="viewSeg" title="Переключение 2D / 3D (T)" data-en-title="Switch 2D / 3D (T)" data-ru-title="Переключение 2D / 3D (T)">
       <span class="pill"></span>
       <button class="btn" data-view="2d" data-en="2D Plan" data-ru="2D план">2D 平面</button>
@@ -324,13 +324,18 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
     <button class="btn" id="fullscreen" title="Полный экран (Shift+F)" data-en-title="Fullscreen (Shift+F)" style="border:1px solid var(--line);background:#fff">⛶ <span data-ru="Экран" data-en="Fullscreen">Экран</span></button>
     <details class="menu"><summary class="btn" data-en="File ▾" data-ru="Файл ▾">Файл ▾</summary>
       <div class="menu-pop">
+        <button class="btn" id="saveSession" data-en="Save session…" data-ru="Сохранить сессию…">Сохранить сессию…</button>
+        <button class="btn" id="openSession" data-en="Open session…" data-ru="Открыть сессию…">Открыть сессию…</button>
+        <hr style="border-color:var(--line);margin:4px 0">
         <button class="btn" id="exportPng" data-en="Export image" data-ru="Экспорт картинки">Экспорт картинки</button>
         <button class="btn" id="exportJson" data-en="Export plan JSON" data-ru="Экспорт плана JSON">Экспорт плана JSON</button>
         <button class="btn" id="importJson" data-en="Import plan" data-ru="Импорт плана">Импорт плана</button>
+        <hr style="border-color:var(--line);margin:4px 0">
         <button class="btn" id="bgOpen" data-en="Background photo / plan" data-ru="Фон: фото / чертёж">Фон: фото / чертёж</button>
         <button class="btn" id="bgTune" data-en="Adjust background" data-ru="Настроить фон">Настроить фон</button>
         <button class="btn" id="bgCalQuick" data-en="Calibrate background scale" data-ru="Калибровка фона">Калибровка фона</button>
-        <button class="btn danger" id="reset" data-en="Reset to default" data-ru="Сбросить к плану">Сбросить к плану</button>
+        <hr style="border-color:var(--line);margin:4px 0">
+        <button class="btn danger" id="reset" data-en="New empty plan" data-ru="Новый пустой план">Новый пустой план</button>
       </div></details>
     <input type="file" id="fileIn" accept=".json,application/json" hidden>
     <input type="file" id="bgFile" accept="image/*" hidden>
@@ -565,20 +570,32 @@ const F = (type,name,cx,cy,w,d,rot=0,color) => ({id:uid(),type,name,cx,cy,w,d,ro
 
 function defaultFurniture(){ return []; }
 
-function defaultState(){
-  const rooms = {};
-  DEFAULT_ROOMS.forEach(r => rooms[r.id] = {name:r.name, mat:r.mat, at:r.at});
+function emptyState(){
   return {
-    furniture: defaultFurniture(),
-    rooms, demolished: [], measures: [], lines: [],
-    walls: DEFAULT_WALLS.map(w => ({id:wid(), ...w})),
-    wins: DEFAULT_WINS.map(w => ({id:wid(), ...w})),
-    doors: DEFAULT_DOORS.map(d => ({id:wid(), ...d, a:[...d.a], b:[...d.b], h:[...d.h], c:[...d.c], o:[...d.o]})),
-    bg: null,
+    furniture: [], rooms: {}, demolished: [], measures: [], lines: [],
+    walls: [], wins: [], doors: [], bg: null,
   };
 }
+function defaultState(){ return emptyState(); }
 
 const STORE = 'hata-flat-v4';
+const SESSIONS_KEY = 'hata-sessions';
+function getSessions(){ try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || {}; } catch(e){ return {}; } }
+function saveSession(name){
+  const sessions = getSessions();
+  sessions[name] = {state: JSON.parse(JSON.stringify(state)), ts: Date.now()};
+  try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions)); } catch(e){ toast('Не удалось сохранить'); }
+}
+function loadSession(name){
+  const s = getSessions()[name];
+  if (!s || !s.state) return;
+  const b = snap(); state = fixState(s.state); ui.sel = null; ui.calib = null; commit(b); renderAll();
+  toast('Сессия «' + name + '» загружена');
+}
+function deleteSession(name){
+  const sessions = getSessions(); delete sessions[name];
+  try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions)); } catch(e){}
+}
 function load(){
   try { const s = JSON.parse(localStorage.getItem(STORE)); if (s && Array.isArray(s.furniture) && Array.isArray(s.walls)) return fixState(s); } catch(e) {}
   return null;
@@ -2679,6 +2696,20 @@ $('#fileIn').onchange = e => {
   });
   e.target.value = '';
 };
+$('#saveSession').onclick = () => {
+  const name = prompt(tr('Имя сессии:', 'Session name:', 'Имя сессии:'), '');
+  if (!name) return;
+  saveSession(name);
+  toast('Сессия «' + name + '» сохранена');
+};
+$('#openSession').onclick = () => {
+  const sessions = getSessions();
+  const names = Object.keys(sessions).sort((a,b) => (sessions[b].ts||0) - (sessions[a].ts||0));
+  if (!names.length) return toast('Нет сохранённых сессий');
+  const name = prompt(tr('Открыть сессию (введите имя):\n' + names.join('\n'), 'Open session (type name):\n' + names.join('\n'), 'Открыть сессию (введите имя):\n' + names.join('\n')), names[0]);
+  if (!name || !sessions[name]) return;
+  loadSession(name);
+};
 $('#bgOpen').onclick = () => $('#bgFile').click();
 $('#bgTune').onclick = () => {
   if (!state.bg) return toast(tr('Фон не загружен', 'No background image loaded', 'Фон не загружен'));
@@ -2715,7 +2746,7 @@ $('#bgFile').onchange = e => {
   rd.readAsDataURL(file);
   e.target.value = '';
 };
-$('#reset').onclick = () => { if (confirm(tr('恢复为默认设计方案？（可撤销）', 'Reset to the default design? (undoable)', 'Сбросить к плану по умолчанию? (можно отменить)'))){ const b = snap(); state = defaultState(); ui.sel = null; ui.calib = null; commit(b); renderAll(); } };
+$('#reset').onclick = () => { if (confirm(tr('Начать новый пустой план? (можно отменить)', 'Start a new empty plan? (undoable)', 'Начать новый пустой план? (можно отменить)'))){ const b = snap(); state = emptyState(); ui.sel = null; ui.calib = null; commit(b); renderAll(); } };
 // 横竖屏切换、表头换行等都会改变画布尺寸；尺寸从 0 恢复（如首次布局）时重新适应窗口
 // 其余尺寸变化（收起 / 展开面板等）保持画面中心不动
 let lastW = 0, lastH = 0;
