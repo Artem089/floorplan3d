@@ -1877,7 +1877,7 @@ function pushOut(f){
 }
 function addItem(it, x, y){
   const [type,name,w,d,color] = it, f = F(type,name,Math.round(x/10)*10,Math.round(y/10)*10,w,d,0,color);
-  pushOut(f);
+  const [sx, sy] = snapMove(f, f.cx, f.cy); f.cx = sx; f.cy = sy;
   ui.sel = {kind:'furn', id:f.id};
   mutate(() => type==='rug' ? state.furniture.unshift(f) : state.furniture.push(f));
   toast(tr(`已添加「${name}」${w}×${d}`, `Added "${nm(name)}" ${w}×${d}`, `Добавлено «${name}» ${w}×${d}`));
@@ -2002,7 +2002,7 @@ const grid = () => 10;
 function snapMove(f, cx, cy){
   let nx = Math.round(cx/grid())*grid(), ny = Math.round(cy/grid())*grid();
   if (ui.layers.wallSnap){
-    const {hw, hh} = aabb(f), tol = 10/view.s;
+    const {hw, hh} = aabb(f), tol = 150;            // радиус привязки к стене, мм
     let best = tol, bx = nx, by = ny;
     for (const w of snapSegs()){
       const th = wallTh(w)/2;
@@ -2499,8 +2499,10 @@ document.addEventListener('keydown', e => {
         if (code==='ArrowUp') lp.y -= st; if (code==='ArrowDown') lp.y += st;
       } else {
         const f = getF(ui.sel.id); if (!f) return;
-        if (code==='ArrowLeft') f.cx -= st; if (code==='ArrowRight') f.cx += st;
-        if (code==='ArrowUp') f.cy -= st; if (code==='ArrowDown') f.cy += st;
+        let nx = f.cx, ny = f.cy;
+        if (code==='ArrowLeft') nx -= st; if (code==='ArrowRight') nx += st;
+        if (code==='ArrowUp') ny -= st; if (code==='ArrowDown') ny += st;
+        [f.cx, f.cy] = snapMove(f, nx, ny);
       }
     });
   }
