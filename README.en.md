@@ -1,8 +1,14 @@
 # Floor Plan Interior Designer
 
-[中文](README.md) | English
+[Русский](README.md) | English
 
 A pure front-end tool for interior design on a floor plan: place furniture, remove or modify walls, and take measurements on a 2D plan, then switch to a Three.js 3D scene with one click — view it from above or walk through it in first person. The whole app is a single `index.html`: no build step, just open it.
+
+## Credits
+
+Based on [floorplan-3d](https://github.com/wy51ai/floorplan-3d) by **wuyi** ([@akokoi1](https://x.com/akokoi1)). Many thanks for the original implementation, the 3D scene and the furniture library!
+
+This version adds: a Russian UI (English and Chinese kept), an empty plan by default with named session save/load, geometry fixes for walls/doors/windows, lamps, wall-length display, door hinge/side controls, and other improvements.
 
 ## Features
 
