@@ -456,6 +456,11 @@ const NAMES_RU = {
   'Office Chair':'Офисное кресло', 'Large Bookshelf':'Большой книжный шкаф', 'Upright Piano':'Пианино',
   'Treadmill':'Беговая дорожка', 'Reading Chair':'Кресло для чтения', 'Tea Table':'Чайный столик',
   'Lounge Chair':'Кресло', 'Dresser':'Туалетный столик',
+  'Lighting':'Освещение', 'Decor':'Декор', 'Curtains':'Шторы',
+  'Round Ceiling Light':'Потолочный светильник', 'Pendant Light':'Подвесной светильник',
+  'Chandelier':'Люстра', 'Track Light':'Трековый светильник',
+  'Poster · Portrait':'Постер (портретный)', 'Poster · Landscape':'Постер (альбомный)',
+  'Poster XL':'Большой постер', 'Framed Picture':'Картина в раме', 'Curtains · Wide':'Шторы (широкие)',
 };
 const nm = s => LANG === 'ru' ? (NAMES_RU[s] ?? s) : s;
 
@@ -533,6 +538,14 @@ const LIB = [
   {cat:'Study & Leisure', items:[
     ['desk','Long Desk',1600,700,'#d8c2a2'],['officechair','Office Chair',620,620,'#4a4f55'],['bookshelf','Large Bookshelf',1600,350,'#e2cfb4'],
     ['piano','Upright Piano',1500,600,'#1f1d1b'],['treadmill','Treadmill',800,1800,'#3a3a3c'],['armchair','Reading Chair',750,800,'#c9a98a']]},
+  {cat:'Lighting', items:[
+    ['ceillamp','Round Ceiling Light',400,400,'#f4efe4'],['pendant','Pendant Light',320,320,'#e8dcc6'],
+    ['chandelier','Chandelier',600,600,'#e6ddc9'],['track','Track Light',1200,120,'#2c2c30']]},
+  {cat:'Decor', items:[
+    ['posterP','Poster · Portrait',600,60,'#e9e4da'],['posterL','Poster · Landscape',900,60,'#e4e7ea'],
+    ['posterXL','Poster XL',1200,60,'#efe8dc'],['frame','Framed Picture',700,60,'#d8cfc0']]},
+  {cat:'Curtains', items:[
+    ['curtain','Curtains',2400,140,'#efe9df'],['curtain','Curtains · Wide',3600,140,'#e7ecf0']]},
 ];
 const typeColor = t => { for (const c of LIB) for (const i of c.items) if (i[0]===t) return i[4]; return '#eee'; };
 
@@ -977,6 +990,10 @@ const ln = (x1,y1,x2,y2,ex='') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${
 const pa = (d,f='none',ex='') => `<path d="${d}" fill="${f}" ${ST} ${ex}/>`;
 const DASH = 'stroke-dasharray="4 3"';
 
+const opt = {cut:2.8, furn:true, labels:true, night:false, hour:10, mode:'orbit'};
+let curtainAnims = [];
+const curtainOpen = () => !opt.night;
+
 function furnSVG(t,w,d,c){
   const x = -w/2, y = -d/2, m = Math.min(w,d);
   switch (t){
@@ -1074,12 +1091,45 @@ function furnSVG(t,w,d,c){
       return s;
     }
     case 'treadmill': return rc(x,y,w,d,c,'rx="50"') + rc(x+90,y+320,w-180,d-400,'#1c1c1e','rx="25"') + rc(x,y,w,230,shade(c,1.4),'rx="40"');
+    case 'ceillamp': {
+      let s = '';
+      [0,45,90,135].forEach(a => { const r = a*Math.PI/180, cx1 = Math.cos(r)*m*.48, cy1 = Math.sin(r)*m*.48;
+        s += `<line x1="${-cx1}" y1="${-cy1}" x2="${cx1}" y2="${cy1}" stroke="#e8cf8a" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".65"/>`; });
+      return s + `<circle r="${m*.46}" fill="#fff8e0" fill-opacity=".85" ${ST}/><circle r="${m*.28}" fill="${shade(c,1.05)}" ${ST}/><circle r="${m*.12}" fill="#f6e9c2" ${ST}/>`;
+    }
+    case 'pendant': return `<line x1="0" y1="${y}" x2="0" y2="${-d*.15}" stroke="#6b665f" stroke-width="6" vector-effect="non-scaling-stroke"/>`
+      + pa(`M${-w*.4} ${d*.18}L${-w*.26} ${-d*.14}H${w*.26}L${w*.4} ${d*.18}Z`, c) + ec(0, d*.18, w*.4, d*.14, '#fff3d6');
+    case 'chandelier': {
+      let s = `<circle r="${m*.46}" fill="none" stroke="${shade(c,.75)}" stroke-width="8" vector-effect="non-scaling-stroke"/>`;
+      [45,135,225,315].forEach(a => { const r = a*Math.PI/180, ex = Math.cos(r)*m*.46, ey = Math.sin(r)*m*.46;
+        s += `<line x1="0" y1="0" x2="${ex}" y2="${ey}" stroke="${shade(c,.8)}" stroke-width="6" vector-effect="non-scaling-stroke"/>`
+          + `<circle cx="${ex}" cy="${ey}" r="${m*.09}" fill="#fff6dd" ${ST}/>`; });
+      return s + `<circle r="${m*.14}" fill="${shade(c,1.08)}" ${ST}/>`;
+    }
+    case 'track': return rc(x, -d*.15, w, d*.3, c, 'rx="12"')
+      + [-.3,0,.3].map(k => `<circle cx="${w*k}" cy="0" r="${Math.min(d*.28, 42)}" fill="#fff8e6" ${ST}/>`).join('');
+    case 'posterP': case 'posterL': case 'posterXL': case 'frame': {
+      const b = t === 'frame' ? Math.max(14, d*.2) : Math.max(8, d*.14), fc = t === 'frame' ? '#4a3f33' : '#f7f4ee';
+      const ix = x + b, iy = y + b, iw = w - 2*b, ih = d - 2*b;
+      return rc(x, y, w, d, fc) + rc(ix, iy, iw, ih, c) + rc(ix, iy, iw*.38, ih, shade(c,.9))
+        + `<circle cx="${ix + iw*.68}" cy="${iy + ih*.5}" r="${Math.max(6, Math.min(ih*.32, iw*.1))}" fill="${shade(c,1.18)}" ${ST}/>`;
+    }
+    case 'curtain': {
+      const ry = y + 9;
+      const fold = (fx, fw) => {
+        let o = rc(fx, ry + 5, fw, d - 9, c);
+        for (let i = fx + 40; i < fx + fw - 15; i += 62) o += `<line x1="${i}" y1="${ry + 7}" x2="${i}" y2="${y + d - 5}" stroke="${shade(c,.86)}" stroke-width="5" vector-effect="non-scaling-stroke" opacity=".75"/>`;
+        return o;
+      };
+      let s = `<line x1="${x + 4}" y1="${ry}" x2="${x + w - 4}" y2="${ry}" stroke="${shade(c,.6)}" stroke-width="10" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+      return s + (curtainOpen() ? fold(x, w*.17) + fold(x + w*.83, w*.17) : fold(x, w));
+    }
     default: return rc(x,y,w,d,c);
   }
 }
 
 /* ======================= Rendering ======================= */
-const NOLABEL = ['plant','floorlamp','sidetable','barstool','beanbag'];
+const NOLABEL = ['plant','floorlamp','sidetable','barstool','beanbag','ceillamp','pendant','chandelier','track'];
 function renderRooms(){
   let s = '';
   ROOMS.forEach(r => {
@@ -2752,11 +2802,10 @@ const stage = $('#stage'), host = $('#view3d');
 const OX = 3600, OY = 3400, H = 2.8, FOV = 45;       // plan center at the world origin, ceiling height 2.8 m
 const wx = x => (x - OX) / 1000, wz = y => (y - OY) / 1000, M = v => v / 1000;
 const SW = () => stage.clientWidth, SH = () => stage.clientHeight;
-const opt = {cut:2.8, furn:true, labels:true, night:false, hour:10, mode:'orbit'};
 
 let inited = false, active = false, raf = 0, anim = null, fly = null;
 let renderer, labelRenderer, scene, camera, orbit, walkCtl, hemi, sun, ground, glassMat, wallMat, capMat, frameMat;
-let archFloor, archUp, furnG, labelG, lampG, colliders = [], selKey = null, selHelper = null;
+let archFloor, archUp, furnG, labelG, lampG, lampFG, colliders = [], selKey = null, selHelper = null;
 let sigArch = '', sigFurn = '', sigLabels = '', grow = 1, furnGrow = 1;
 const doors = [], keys = {};
 
@@ -2795,8 +2844,8 @@ function init(){
   glassMat = new THREE.MeshPhysicalMaterial({color:0xcfe6ef, roughness:.05, transparent:true, opacity:.28, depthWrite:false, side:THREE.DoubleSide});
   wallMat = mat('#f4f1eb', {roughness:.92}); capMat = mat('#34312d', {roughness:.9}); frameMat = mat('#5d6166', {roughness:.5, metalness:.4});
 
-  archFloor = new THREE.Group(); archUp = new THREE.Group(); furnG = new THREE.Group(); labelG = new THREE.Group(); lampG = new THREE.Group();
-  scene.add(archFloor, archUp, furnG, labelG, lampG);
+  archFloor = new THREE.Group(); archUp = new THREE.Group(); furnG = new THREE.Group(); labelG = new THREE.Group(); lampG = new THREE.Group(); lampFG = new THREE.Group();
+  scene.add(archFloor, archUp, furnG, labelG, lampG, lampFG);
 
   const cv = renderer.domElement; let downAt = null, look = null;
   cv.addEventListener('pointerdown', e => {
@@ -3023,6 +3072,11 @@ const plate = (g, r, x, y, z) => g.add(lathe([[0, 0], [r*.6, 0], [r*.72, .008], 
 /* ======================= Furniture models (local coords: back faces -z) ======================= */
 function buildFurniture(f){
   const g = new THREE.Group(), w = M(f.w), d = M(f.d), c = f.color || '#ddd', bz = -d/2, R = rng(Math.round(f.w*7 + f.d*13 + f.cx + f.cy));
+  const ceilLight = () => {
+    const pl = new THREE.PointLight(0xffd9a8, 0, 7, 1.6);
+    pl.position.set(wx(f.cx), H - .3, wz(f.cy));
+    lampFG.add(pl);
+  };
   switch (f.type){
     case 'bed': {
       const fr = woodM('#8d7258'), fab = fabric(c), fh = .3, mt = .22, top = fh + mt, n = Math.max(3, Math.round(w/.28)), sw = (w - .04)/n;
@@ -3500,6 +3554,78 @@ function buildFurniture(f){
       cg.add(rbox(w*.8, .2, .08, bm, 0, -.1, 0, .02), box(w*.4, .11, .004, screenMat('#2a5d8f'), 0, -.055, .041)); g.add(cg);
       break;
     }
+    case 'ceillamp': {
+      plate(g, w*.47, 0, H - .05, 0);
+      g.add(box(w*.7, .014, w*.7, glowMat('#fff8e6', '#ffe6b4', .8), 0, H - .06, 0));
+      ceilLight();
+      break;
+    }
+    case 'pendant': {
+      g.add(rod([0, H - .62, 0], [0, H, 0], .006, mat('#5c5850', {roughness:.5, metalness:.4})));
+      g.add(lathe([[w*.46, 0], [w*.3, .18], [w*.07, .3]], mat(c, {roughness:.6, side:THREE.DoubleSide}), 0, H - .86, 0, 40));
+      g.add(box(w*.5, .012, w*.5, glowMat('#fff7e6', '#ffe9c4', .9), 0, H - .85, 0));
+      ceilLight();
+      break;
+    }
+    case 'chandelier': {
+      const lm2 = mat(c, {roughness:.45, metalness:.3});
+      g.add(rod([0, H - .4, 0], [0, H, 0], .007, lm2));
+      g.add(lathe([[.001, 0], [.05, .02], [.03, .09]], lm2, 0, H - .47, 0, 24));
+      g.add(ring(w*.44, .01, lm2, 0, H - .52, 0));
+      for (let i = 0; i < 4; i++){
+        const a = (i + .5) * Math.PI / 2, ex = Math.cos(a) * w * .44, ez = Math.sin(a) * w * .44;
+        g.add(rod([0, H - .45, 0], [ex, H - .52, ez], .007, lm2));
+        g.add(blob(.035, .05, .035, glowMat('#fff8ea', '#ffe6ae', .9), ex, H - .57, ez, 12));
+      }
+      g.add(blob(.05, .06, .05, glowMat('#fff8ea', '#ffe6ae', .9), 0, H - .56, 0, 12));
+      ceilLight();
+      break;
+    }
+    case 'track': {
+      const dm = mat(c, {roughness:.5, metalness:.3});
+      g.add(box(w, .04, .05, dm, 0, H - .06, 0));
+      [-.3, 0, .3].forEach(k => {
+        const hx = w * k;
+        g.add(rbox(.07, .12, .07, dm, hx, H - .14, 0, .02));
+        g.add(box(.05, .01, .05, glowMat('#fff8ea', '#ffe9bb', .9), hx, H - .2, 0));
+      });
+      ceilLight();
+      break;
+    }
+    case 'posterP': case 'posterL': case 'posterXL': case 'frame': {
+      const ph2 = f.type === 'posterP' ? .92 : f.type === 'posterL' ? .62 : f.type === 'posterXL' ? .78 : .55;
+      const isF = f.type === 'frame', yc = 1.45, z0 = bz + .013, ins = isF ? .07 : .03;
+      g.add(rbox(w, ph2, .026, isF ? '#4a3f33' : '#f6f3ec', 0, yc, z0 + .013, .006));
+      g.add(box(w - ins, ph2 - ins, .006, c, 0, yc, z0 + .03));
+      const pal = ['#c9744e', '#5b7f8c', '#d9b26a', '#8a9a7b', '#b06a5f'];
+      const n = 2 + Math.floor(R() * 2);
+      for (let i = 0; i < n; i++){
+        const aw = (w - ins - .04) * (.3 + R() * .45), ah = (ph2 - ins - .04) * (.25 + R() * .45);
+        g.add(box(aw, ah, .004, pal[Math.floor(R() * pal.length)], (R() - .5) * (w - ins - aw), yc + (R() - .5) * (ph2 - ins - ah), z0 + .034));
+      }
+      break;
+    }
+    case 'curtain': {
+      const ph2 = 2.4, py = .15 + ph2/2, cz = bz + .05, fm = fabric(c);
+      const mk = sx => {
+        const geo = new THREE.BoxGeometry(w/2, ph2, .045);
+        geo.translate(sx * w/4, 0, 0);
+        const msh = new THREE.Mesh(geo, fm);
+        msh.castShadow = msh.receiveShadow = true;
+        return msh;
+      };
+      const L = mk(1), Rp = mk(-1);
+      L.position.set(-w/2, py, cz); Rp.position.set(w/2, py, cz);
+      g.add(L, Rp);
+      const rmat = mat('#8b8479', {roughness:.5, metalness:.4});
+      g.add(rod([-w/2, py + ph2/2 + .04, cz], [w/2, py + ph2/2 + .04, cz], .012, rmat));
+      g.add(blob(.024, .024, .024, rmat, -w/2, py + ph2/2 + .04, cz, 10));
+      g.add(blob(.024, .024, .024, rmat, w/2, py + ph2/2 + .04, cz, 10));
+      const u = {L, R: Rp, k: curtainOpen() ? 1 : 0}, sx0 = 1 - .76 * u.k;
+      L.scale.x = sx0; Rp.scale.x = sx0;
+      curtainAnims.push(u);
+      break;
+    }
     default: g.add(box(w, .8, d, c));
   }
   g.position.set(wx(f.cx), 0, wz(f.cy));
@@ -3601,9 +3727,11 @@ function buildArch(){
 }
 
 function buildFurn(){
-  clearGroup(furnG);
+  clearGroup(furnG); clearGroup(lampFG);
+  curtainAnims.length = 0;
   state.furniture.forEach(f => furnG.add(buildFurniture(f)));
-  furnG.visible = opt.furn; selKey = null; applyGrow();
+  furnG.visible = opt.furn; lampFG.visible = opt.furn;
+  selKey = null; applyGrow(); applyLight();
 }
 
 function buildLabels(){
@@ -3638,6 +3766,7 @@ function applyGrow(){
   if (!inited) return;
   archUp.scale.y = Math.max(grow, .001);
   furnG.scale.y = Math.max(furnGrow, .001);
+  lampFG.scale.y = Math.max(furnGrow, .001);
   lampG.visible = grow > .99;
 }
 
@@ -3650,7 +3779,7 @@ function applyLight(){
   hemi.intensity = opt.night ? .12 : 1.1;
   scene.background = new THREE.Color(opt.night ? 0x1c2130 : 0xf7f4ee);
   ground.material.color.set(opt.night ? 0x2a2e38 : 0xf2eee7);
-  lampG.children.forEach(o => { if (o.isPointLight) o.intensity = opt.night ? 6 : 0; else o.material.emissiveIntensity = opt.night ? 2 : .3; });
+  [lampG, lampFG].forEach(lg => lg.children.forEach(o => { if (o.isPointLight) o.intensity = opt.night ? 6 : 0; else o.material.emissiveIntensity = opt.night ? 2 : .3; }));
   renderer.toneMappingExposure = opt.night ? 1.25 : 1.05;
   envK = opt.night ? .15 : 1; matCache.forEach(m => { if (m.envMap) m.envMapIntensity = m.userData.env*envK; });
   const h = Math.floor(opt.hour), m = Math.round((opt.hour - h)*60);
@@ -3733,6 +3862,7 @@ async function exit(){
   active = false; cancelAnimationFrame(raf); raf = 0;
   stage.classList.remove('animating');
   grow = furnGrow = 1; applyGrow();
+  renderFurn();
 }
 
 /* ======================= Selection / picking ======================= */
@@ -3924,7 +4054,7 @@ function bindUI(){
   document.querySelectorAll('[data-cut]').forEach(b => b.onclick = () => { if (opt.mode === 'walk') return; opt.cut = +b.dataset.cut; syncCutBtns(); sync(); });
   document.querySelectorAll('#toggles3d .btn').forEach(b => b.onclick = () => {
     const k = b.dataset.t; opt[k] = !opt[k]; b.classList.toggle('on', opt[k]);
-    if (k === 'furn'){ furnG.visible = opt.furn; if (!opt.furn && ui.sel?.kind === 'furn') window.select(null); }
+    if (k === 'furn'){ furnG.visible = opt.furn; lampFG.visible = opt.furn; if (!opt.furn && ui.sel?.kind === 'furn') window.select(null); }
     if (k === 'labels') showLabels(opt.labels && opt.mode === 'orbit' && !anim);
     if (k === 'night') applyLight();
   });
@@ -3948,6 +4078,15 @@ function loop(){
     showDoorHint(h?.door && h.dist < 2.5 ? h.door : null);
   }
   doors.forEach(d => { const tg = d.open ? d.a1 : d.a0; d.cur += (tg - d.cur) * Math.min(1, dt*6); d.pivot.rotation.y = d.cur; });
+  if (curtainAnims.length){
+    const tk = curtainOpen() ? 1 : 0;
+    curtainAnims.forEach(u => {
+      u.k += (tk - u.k) * Math.min(1, dt * 5);
+      if (Math.abs(tk - u.k) < .002) u.k = tk;
+      const sx = 1 - .76 * u.k;
+      u.L.scale.x = sx; u.R.scale.x = sx;
+    });
+  }
   updateSel();
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
@@ -3957,7 +4096,9 @@ function shot(){ const a = document.createElement('a'); a.download = tr( 'floor-
 
 function relang(){ syncWalkTexts(); if (inited) buildLabels(); if (doorHintLast.door && ui.hoverDoor) showDoorHint(doorHintLast.door, doorHintLast.x, doorHintLast.y); }
 
-window.View3D = {enter, exit, relang, sync:() => sync(), shot, groundAt, flyToRoom:id => active && !anim && flyToRoom(id), walking:() => active && opt.mode === 'walk'};
+window.View3D = {enter, exit, relang, sync:() => sync(), shot, groundAt, flyToRoom:id => active && !anim && flyToRoom(id), walking:() => active && opt.mode === 'walk',
+  stats: () => ({lights: lampFG.children.filter(o => o.isPointLight).length, lightInt: lampFG.children.filter(o => o.isPointLight).map(o => +o.intensity.toFixed(1)),
+    curtains: curtainAnims.length, furnN: furnG.children.length, furnVis: furnG.visible, lampVis: lampFG.visible})};
 </script>
 </body>
 </html>
