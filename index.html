@@ -3072,9 +3072,9 @@ const plate = (g, r, x, y, z) => g.add(lathe([[0, 0], [r*.6, 0], [r*.72, .008], 
 /* ======================= Furniture models (local coords: back faces -z) ======================= */
 function buildFurniture(f){
   const g = new THREE.Group(), w = M(f.w), d = M(f.d), c = f.color || '#ddd', bz = -d/2, R = rng(Math.round(f.w*7 + f.d*13 + f.cx + f.cy));
-  const ceilLight = () => {
+  const ceilLight = dy => {
     const pl = new THREE.PointLight(0xffd9a8, 0, 7, 1.6);
-    pl.position.set(wx(f.cx), H - .3, wz(f.cy));
+    pl.position.set(wx(f.cx), H - dy, wz(f.cy));
     lampFG.add(pl);
   };
   switch (f.type){
@@ -3557,14 +3557,14 @@ function buildFurniture(f){
     case 'ceillamp': {
       plate(g, w*.47, 0, H - .05, 0);
       g.add(box(w*.7, .014, w*.7, glowMat('#fff8e6', '#ffe6b4', .8), 0, H - .06, 0));
-      ceilLight();
+      ceilLight(.12);
       break;
     }
     case 'pendant': {
       g.add(rod([0, H - .62, 0], [0, H, 0], .006, mat('#5c5850', {roughness:.5, metalness:.4})));
       g.add(lathe([[w*.46, 0], [w*.3, .18], [w*.07, .3]], mat(c, {roughness:.6, side:THREE.DoubleSide}), 0, H - .86, 0, 40));
       g.add(box(w*.5, .012, w*.5, glowMat('#fff7e6', '#ffe9c4', .9), 0, H - .85, 0));
-      ceilLight();
+      ceilLight(.95);
       break;
     }
     case 'chandelier': {
@@ -3578,7 +3578,7 @@ function buildFurniture(f){
         g.add(blob(.035, .05, .035, glowMat('#fff8ea', '#ffe6ae', .9), ex, H - .57, ez, 12));
       }
       g.add(blob(.05, .06, .05, glowMat('#fff8ea', '#ffe6ae', .9), 0, H - .56, 0, 12));
-      ceilLight();
+      ceilLight(.62);
       break;
     }
     case 'track': {
@@ -3589,7 +3589,7 @@ function buildFurniture(f){
         g.add(rbox(.07, .12, .07, dm, hx, H - .14, 0, .02));
         g.add(box(.05, .01, .05, glowMat('#fff8ea', '#ffe9bb', .9), hx, H - .2, 0));
       });
-      ceilLight();
+      ceilLight(.24);
       break;
     }
     case 'posterP': case 'posterL': case 'posterXL': case 'frame': {
